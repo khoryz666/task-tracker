@@ -1,37 +1,72 @@
 import { disableNotifications, enableNotifications, isSubscribed, pushSupported } from "../push.js";
 import { clearGithubToken, getGistId, getGithubToken, setGithubToken } from "../settings.js";
 import { syncNow } from "../sync.js";
+import { icon } from "./icons.js";
+
+function block(heading: string): { block: HTMLDivElement; body: HTMLDivElement } {
+  const wrap = document.createElement("div");
+  wrap.className = "settings-panel__block";
+  const h = document.createElement("h3");
+  h.className = "settings-panel__heading";
+  h.textContent = heading;
+  const body = document.createElement("div");
+  body.className = "settings-panel__block";
+  wrap.append(h, body);
+  return { block: wrap, body };
+}
 
 export function mountSettingsPanel(root: HTMLElement): void {
   const details = document.createElement("details");
-  details.className = "settings-panel";
+  details.className = "card settings-panel";
 
   const summary = document.createElement("summary");
-  summary.textContent = "Sync settings";
+  summary.append(icon("cloud", 15), document.createTextNode("Sync & notifications"), icon("chevronDown", 16));
+  summary.lastElementChild!.classList.add("icon--chevron");
   details.append(summary);
 
   const body = document.createElement("div");
   body.className = "settings-panel__body";
 
+  // ---- Sync ----
+  const sync = block("Sync");
+
+  const tokenRow = document.createElement("div");
+  tokenRow.className = "settings-panel__row";
   const tokenInput = document.createElement("input");
   tokenInput.type = "password";
-  tokenInput.className = "settings-panel__field";
+  tokenInput.className = "field";
   tokenInput.placeholder = "GitHub token (scope: gist)";
   tokenInput.value = getGithubToken() ?? "";
+  const toggleVisibilityBtn = document.createElement("button");
+  toggleVisibilityBtn.type = "button";
+  toggleVisibilityBtn.className = "btn btn--icon";
+  toggleVisibilityBtn.title = "Show/hide token";
+  toggleVisibilityBtn.append(icon("eye"));
+  toggleVisibilityBtn.addEventListener("click", () => {
+    const show = tokenInput.type === "password";
+    tokenInput.type = show ? "text" : "password";
+    toggleVisibilityBtn.innerHTML = "";
+    toggleVisibilityBtn.append(icon(show ? "eyeOff" : "eye"));
+  });
+  tokenRow.append(tokenInput, toggleVisibilityBtn);
 
+  const syncActions = document.createElement("div");
+  syncActions.className = "settings-panel__actions";
   const saveBtn = document.createElement("button");
   saveBtn.type = "button";
-  saveBtn.textContent = "Save & sync";
-
+  saveBtn.className = "btn btn--primary";
+  saveBtn.append(icon("check"), document.createTextNode("Save & sync"));
   const clearBtn = document.createElement("button");
   clearBtn.type = "button";
+  clearBtn.className = "btn";
   clearBtn.textContent = "Disconnect";
+  syncActions.append(saveBtn, clearBtn);
 
   const status = document.createElement("p");
   status.className = "settings-panel__status";
   status.textContent = getGithubToken()
     ? "Sync is enabled: tasks sync automatically via a private GitHub gist."
-    : "Create a token at github.com/settings/tokens with only the 'gist' scope, then paste it here to enable automatic cross-device sync.";
+    : "No manual token needed if you used ./setup.sh - paste what it printed. Otherwise, create one at github.com/settings/tokens with only the 'gist' scope.";
 
   const gistLink = document.createElement("a");
   gistLink.className = "settings-panel__status";
@@ -42,7 +77,8 @@ export function mountSettingsPanel(root: HTMLElement): void {
     const gistId = getGistId();
     if (gistId) {
       gistLink.href = `https://gist.github.com/${gistId}`;
-      gistLink.textContent = "View sync gist ↗ (its id is the GIST_ID reminder secret)";
+      gistLink.innerHTML = "";
+      gistLink.append(icon("externalLink", 13), document.createTextNode(" View sync gist (its id is GIST_ID)"));
       gistLink.hidden = false;
     } else {
       gistLink.hidden = true;
@@ -54,8 +90,10 @@ export function mountSettingsPanel(root: HTMLElement): void {
     const token = tokenInput.value.trim();
     if (!token) return;
     setGithubToken(token);
+    status.className = "settings-panel__status";
     status.textContent = "Saved. Syncing…";
     void syncNow().then((res) => {
+      status.className = `settings-panel__status settings-panel__status--${res.status === "ok" ? "ok" : res.status === "error" ? "error" : ""}`;
       status.textContent =
         res.status === "ok"
           ? `Synced (${res.taskCount} tasks).`
@@ -69,30 +107,33 @@ export function mountSettingsPanel(root: HTMLElement): void {
   clearBtn.addEventListener("click", () => {
     clearGithubToken();
     tokenInput.value = "";
+    status.className = "settings-panel__status";
     status.textContent = "Sync disabled. Your local tasks are untouched.";
     refreshGistLink();
   });
 
-  body.append(tokenInput, saveBtn, clearBtn, status, gistLink);
+  sync.body.append(tokenRow, syncActions, status, gistLink);
 
-  const notifHeading = document.createElement("p");
-  notifHeading.className = "settings-panel__subheading";
-  notifHeading.textContent = "Notifications";
+  // ---- Notifications ----
+  const notif = block("Notifications");
 
   const notifBtn = document.createElement("button");
   notifBtn.type = "button";
+  notifBtn.className = "btn";
 
   const notifStatus = document.createElement("p");
   notifStatus.className = "settings-panel__status";
 
   async function refreshNotifButton(): Promise<void> {
+    notifBtn.innerHTML = "";
     if (!pushSupported()) {
       notifBtn.disabled = true;
-      notifBtn.textContent = "Not supported in this browser";
+      notifBtn.append(icon("bell"), document.createTextNode("Not supported in this browser"));
       return;
     }
     const subscribed = await isSubscribed();
-    notifBtn.textContent = subscribed ? "Disable notifications" : "Enable notifications";
+    notifBtn.classList.toggle("btn--primary", !subscribed);
+    notifBtn.append(icon("bell"), document.createTextNode(subscribed ? "Disable notifications" : "Enable notifications"));
   }
 
   notifBtn.addEventListener("click", async () => {
@@ -109,7 +150,9 @@ export function mountSettingsPanel(root: HTMLElement): void {
 
   void refreshNotifButton();
 
-  body.append(notifHeading, notifBtn, notifStatus);
+  notif.body.append(notifBtn, notifStatus);
+
+  body.append(sync.block, notif.block);
   details.append(body);
   root.append(details);
 }

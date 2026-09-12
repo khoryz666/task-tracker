@@ -1,5 +1,6 @@
 import * as store from "../store.js";
 import { STATUS_LABEL, STATUS_ORDER, type Task, type TaskStatus } from "../types.js";
+import { icon } from "./icons.js";
 
 interface Filters {
   category: string; // "all" or a category name
@@ -44,16 +45,24 @@ function el<K extends keyof HTMLElementTagNameMap>(
   return node;
 }
 
+function field(labelText: string, input: HTMLElement, wide = false): HTMLDivElement {
+  const group = el("div", `task-edit__group${wide ? " task-edit__group--wide" : ""}`);
+  const label = el("label", "field-label", labelText);
+  group.append(label, input);
+  return group;
+}
+
 export function mountListView(root: HTMLElement): void {
   root.innerHTML = "";
 
   const addForm = el("form", "quick-add");
-  const addInput = el("input", "quick-add__input");
+  const addInput = el("input", "quick-add__input field");
   addInput.type = "text";
   addInput.placeholder = "Add a task and hit Enter…";
   addInput.required = true;
-  const addButton = el("button", "quick-add__button", "Add");
+  const addButton = el("button", "btn btn--primary");
   addButton.type = "submit";
+  addButton.append(icon("plus"), document.createTextNode("Add"));
   addForm.append(addInput, addButton);
   addForm.addEventListener("submit", (e) => {
     e.preventDefault();
@@ -65,8 +74,8 @@ export function mountListView(root: HTMLElement): void {
   });
 
   const filterBar = el("div", "filter-bar");
-  const categorySelect = el("select", "filter-bar__select");
-  const statusSelect = el("select", "filter-bar__select");
+  const categorySelect = el("select", "filter-bar__select field");
+  const statusSelect = el("select", "filter-bar__select field");
   for (const opt of [
     ["all", "All statuses"],
     ["not_started", STATUS_LABEL.not_started],
@@ -86,7 +95,7 @@ export function mountListView(root: HTMLElement): void {
     filters.category = categorySelect.value;
     render();
   });
-  const sortSelect = el("select", "filter-bar__select");
+  const sortSelect = el("select", "filter-bar__select field");
   for (const opt of [
     ["deadline", "Sort: deadline"],
     ["critical", "Sort: critical first"],
@@ -126,11 +135,13 @@ export function mountListView(root: HTMLElement): void {
   }
 
   function renderRow(task: Task): HTMLLIElement {
-    const li = el("li", `task-row task-row--${task.status}${task.critical ? " task-row--critical" : ""}`);
+    const li = el("li", `card task-row task-row--${task.status}${task.critical ? " task-row--critical" : ""}`);
 
-    const statusBtn = el("button", "task-row__status", STATUS_LABEL[task.status]);
+    const statusBtn = el("button", "task-row__status");
     statusBtn.type = "button";
     statusBtn.title = "Click to advance status";
+    if (task.status === "done") statusBtn.append(icon("check"));
+    statusBtn.append(document.createTextNode(STATUS_LABEL[task.status]));
     statusBtn.addEventListener("click", () => void store.updateTask(task.id, { status: nextStatus(task.status) }));
 
     const main = el("div", "task-row__main");
@@ -143,17 +154,24 @@ export function mountListView(root: HTMLElement): void {
     meta.textContent = bits.join(" · ");
     main.append(title, meta);
 
-    const critBtn = el("button", "task-row__critical", task.critical ? "★" : "☆");
+    const critBtn = el("button", `btn btn--icon${task.critical ? " is-active task-row__critical" : " task-row__critical"}`);
     critBtn.type = "button";
     critBtn.title = "Toggle critical";
+    critBtn.append(icon(task.critical ? "star" : "starOutline"));
     critBtn.addEventListener("click", () => void store.updateTask(task.id, { critical: !task.critical }));
 
-    const editBtn = el("button", "task-row__edit", "Edit");
+    const editBtn = el("button", "btn btn--icon");
     editBtn.type = "button";
+    editBtn.title = "Edit";
+    editBtn.append(icon("pencil"));
 
-    const delBtn = el("button", "task-row__delete", "Delete");
+    const delBtn = el("button", "btn btn--icon btn--danger");
     delBtn.type = "button";
-    delBtn.addEventListener("click", () => void store.deleteTask(task.id));
+    delBtn.title = "Delete";
+    delBtn.append(icon("trash"));
+    delBtn.addEventListener("click", () => {
+      if (confirm(`Delete "${task.title}"?`)) void store.deleteTask(task.id);
+    });
 
     const editPanel = renderEditPanel(task);
     editPanel.hidden = true;
@@ -161,8 +179,11 @@ export function mountListView(root: HTMLElement): void {
       editPanel.hidden = !editPanel.hidden;
     });
 
+    const actions = el("div", "task-row__actions");
+    actions.append(critBtn, editBtn, delBtn);
+
     const rowTop = el("div", "task-row__top");
-    rowTop.append(statusBtn, main, critBtn, editBtn, delBtn);
+    rowTop.append(statusBtn, main, actions);
     li.append(rowTop, editPanel);
     return li;
   }
@@ -170,36 +191,34 @@ export function mountListView(root: HTMLElement): void {
   function renderEditPanel(task: Task): HTMLDivElement {
     const panel = el("div", "task-edit");
 
-    const categoryInput = el("input", "task-edit__field");
+    const categoryInput = el("input", "task-edit__field field");
     categoryInput.value = task.category;
-    categoryInput.placeholder = "Category";
 
-    const weekInput = el("input", "task-edit__field");
+    const weekInput = el("input", "task-edit__field field");
     weekInput.type = "number";
-    weekInput.placeholder = "Week";
     weekInput.value = task.week != null ? String(task.week) : "";
 
-    const weightInput = el("input", "task-edit__field");
+    const weightInput = el("input", "task-edit__field field");
     weightInput.type = "number";
-    weightInput.placeholder = "Weight %";
     weightInput.min = "0";
     weightInput.max = "100";
     weightInput.value = task.weight != null ? String(Math.round(task.weight * 100)) : "";
 
-    const deadlineInput = el("input", "task-edit__field");
+    const deadlineInput = el("input", "task-edit__field field");
     deadlineInput.type = "date";
     deadlineInput.value = task.deadline ?? "";
 
-    const tagsInput = el("input", "task-edit__field");
-    tagsInput.placeholder = "tags, comma, separated";
+    const tagsInput = el("input", "task-edit__field field");
+    tagsInput.placeholder = "e.g. reading, group-work";
     tagsInput.value = task.tags.join(", ");
 
-    const notesInput = el("textarea", "task-edit__notes");
+    const notesInput = el("textarea", "task-edit__notes field");
     notesInput.placeholder = "Notes (markdown)";
     notesInput.value = task.notes;
 
-    const saveBtn = el("button", "task-edit__save", "Save");
+    const saveBtn = el("button", "btn btn--primary");
     saveBtn.type = "button";
+    saveBtn.append(icon("check"), document.createTextNode("Save"));
     saveBtn.addEventListener("click", () => {
       void store.updateTask(task.id, {
         category: categoryInput.value.trim() || "uncategorized",
@@ -214,7 +233,17 @@ export function mountListView(root: HTMLElement): void {
       });
     });
 
-    panel.append(categoryInput, weekInput, weightInput, deadlineInput, tagsInput, notesInput, saveBtn);
+    panel.append(
+      field("Category", categoryInput),
+      field("Week", weekInput),
+      field("Weight %", weightInput),
+      field("Deadline", deadlineInput),
+      field("Tags", tagsInput, true),
+      field("Notes", notesInput, true),
+    );
+    const actions = el("div", "task-edit__actions");
+    actions.append(saveBtn);
+    panel.append(actions);
     return panel;
   }
 
