@@ -1,5 +1,5 @@
 import { disableNotifications, enableNotifications, isSubscribed, pushSupported } from "../push.js";
-import { clearGithubToken, getGithubToken, setGithubToken } from "../settings.js";
+import { clearGithubToken, getGistId, getGithubToken, setGithubToken } from "../settings.js";
 import { syncNow } from "../sync.js";
 
 export function mountSettingsPanel(root: HTMLElement): void {
@@ -33,6 +33,23 @@ export function mountSettingsPanel(root: HTMLElement): void {
     ? "Sync is enabled: tasks sync automatically via a private GitHub gist."
     : "Create a token at github.com/settings/tokens with only the 'gist' scope, then paste it here to enable automatic cross-device sync.";
 
+  const gistLink = document.createElement("a");
+  gistLink.className = "settings-panel__status";
+  gistLink.target = "_blank";
+  gistLink.rel = "noopener noreferrer";
+
+  function refreshGistLink(): void {
+    const gistId = getGistId();
+    if (gistId) {
+      gistLink.href = `https://gist.github.com/${gistId}`;
+      gistLink.textContent = "View sync gist ↗ (its id is the GIST_ID reminder secret)";
+      gistLink.hidden = false;
+    } else {
+      gistLink.hidden = true;
+    }
+  }
+  refreshGistLink();
+
   saveBtn.addEventListener("click", () => {
     const token = tokenInput.value.trim();
     if (!token) return;
@@ -45,6 +62,7 @@ export function mountSettingsPanel(root: HTMLElement): void {
           : res.status === "error"
             ? `Sync failed: ${res.message}`
             : "Sync enabled.";
+      refreshGistLink();
     });
   });
 
@@ -52,9 +70,10 @@ export function mountSettingsPanel(root: HTMLElement): void {
     clearGithubToken();
     tokenInput.value = "";
     status.textContent = "Sync disabled. Your local tasks are untouched.";
+    refreshGistLink();
   });
 
-  body.append(tokenInput, saveBtn, clearBtn, status);
+  body.append(tokenInput, saveBtn, clearBtn, status, gistLink);
 
   const notifHeading = document.createElement("p");
   notifHeading.className = "settings-panel__subheading";

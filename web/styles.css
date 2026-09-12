@@ -262,6 +262,11 @@ main#app {
   margin: 0;
 }
 
+a.settings-panel__status {
+  color: var(--accent);
+  text-decoration: none;
+}
+
 .settings-panel__subheading {
   margin: 0.5rem 0 0;
   font-size: 0.85rem;

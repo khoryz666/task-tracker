@@ -88,9 +88,9 @@ sends a real Web Push notification.
    ```
 2. Put the **public** key in `web/src/config.ts` (`VAPID_PUBLIC_KEY`) and
    rebuild/redeploy. The public key is safe to commit.
-3. In the app, do at least one sync (above) so a gist exists, then find its
-   id: **Sync settings** shows a link to the gist, or check
-   <https://gist.github.com/> in your GitHub account. It's the id in the URL.
+3. In the app, do at least one sync (above) so a gist exists. **Sync
+   settings** then shows a "View sync gist" link - its id (the part of the
+   URL after `gist.github.com/`) is your `GIST_ID`.
 4. In the app, click **Enable notifications** (in Sync settings) on each
    device you want reminders on.
 5. Get a free API key from <https://console.groq.com/keys> (used to write
