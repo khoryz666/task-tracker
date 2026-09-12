@@ -1,3 +1,4 @@
+import { disableNotifications, enableNotifications, isSubscribed, pushSupported } from "../push.js";
 import { clearGithubToken, getGithubToken, setGithubToken } from "../settings.js";
 import { syncNow } from "../sync.js";
 
@@ -54,6 +55,42 @@ export function mountSettingsPanel(root: HTMLElement): void {
   });
 
   body.append(tokenInput, saveBtn, clearBtn, status);
+
+  const notifHeading = document.createElement("p");
+  notifHeading.className = "settings-panel__subheading";
+  notifHeading.textContent = "Notifications";
+
+  const notifBtn = document.createElement("button");
+  notifBtn.type = "button";
+
+  const notifStatus = document.createElement("p");
+  notifStatus.className = "settings-panel__status";
+
+  async function refreshNotifButton(): Promise<void> {
+    if (!pushSupported()) {
+      notifBtn.disabled = true;
+      notifBtn.textContent = "Not supported in this browser";
+      return;
+    }
+    const subscribed = await isSubscribed();
+    notifBtn.textContent = subscribed ? "Disable notifications" : "Enable notifications";
+  }
+
+  notifBtn.addEventListener("click", async () => {
+    const subscribed = await isSubscribed();
+    if (subscribed) {
+      await disableNotifications();
+      notifStatus.textContent = "Notifications disabled on this device.";
+    } else {
+      const res = await enableNotifications();
+      notifStatus.textContent = res.message;
+    }
+    await refreshNotifButton();
+  });
+
+  void refreshNotifButton();
+
+  body.append(notifHeading, notifBtn, notifStatus);
   details.append(body);
   root.append(details);
 }

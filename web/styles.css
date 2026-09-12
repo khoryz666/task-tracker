@@ -262,6 +262,13 @@ main#app {
   margin: 0;
 }
 
+.settings-panel__subheading {
+  margin: 0.5rem 0 0;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
 .tab-bar {
   display: flex;
   gap: 0.4rem;

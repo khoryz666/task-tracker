@@ -21,6 +21,8 @@ const CORE_ASSETS = [
   "./dist/settings.js",
   "./dist/gist.js",
   "./dist/sync.js",
+  "./dist/push.js",
+  "./dist/config.js",
   "./dist/ui/list-view.js",
   "./dist/ui/dashboard-view.js",
   "./dist/ui/settings-panel.js",
@@ -66,6 +68,43 @@ sw.addEventListener("fetch", (event) => {
         })
         .catch(() => cached ?? Response.error());
       return cached ?? network;
+    }),
+  );
+});
+
+interface PushPayload {
+  title?: string;
+  body?: string;
+  url?: string;
+}
+
+sw.addEventListener("push", (event) => {
+  let data: PushPayload = {};
+  try {
+    data = event.data ? (event.data.json() as PushPayload) : {};
+  } catch {
+    data = { body: event.data?.text() };
+  }
+
+  event.waitUntil(
+    sw.registration.showNotification(data.title ?? "Task Tracker", {
+      body: data.body ?? "You have upcoming tasks.",
+      icon: "./icons/icon-192.png",
+      badge: "./icons/icon-192.png",
+      data: { url: data.url ?? "./index.html" },
+    }),
+  );
+});
+
+sw.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const url = (event.notification.data as PushPayload | undefined)?.url ?? "./index.html";
+
+  event.waitUntil(
+    sw.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clients) => {
+      const existing = clients.find((c): c is WindowClient => "focus" in c);
+      if (existing) return existing.focus();
+      return sw.clients.openWindow(url);
     }),
   );
 });
