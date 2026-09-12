@@ -15,7 +15,7 @@
         devShells.default = pkgs.mkShell {
           packages = with pkgs; [
             nodejs_22
-            nodePackages.typescript
+            typescript
             python3
           ];
 
