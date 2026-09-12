@@ -288,18 +288,68 @@ select.field {
   color: var(--accent);
 }
 
+/* ---------- collapsible panels ---------- */
+
+.collapse {
+  overflow: hidden;
+  max-height: 0;
+  transition: max-height 0.22s ease;
+}
+
+.expand-chevron {
+  color: var(--muted);
+}
+
+.expand-chevron .icon {
+  transition: transform 0.2s ease;
+}
+
+.expand-chevron--open .icon {
+  transform: rotate(180deg);
+}
+
 /* ---------- quick add ---------- */
 
 .quick-add {
-  display: flex;
-  gap: 0.5rem;
+  padding: 0.5rem 0.6rem;
   margin-bottom: 1rem;
+}
+
+.quick-add__row {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
 }
 
 .quick-add__input {
   flex: 1;
-  padding: 0.65rem 0.85rem;
+  border: none;
+  background: transparent;
+  padding: 0.5rem 0.2rem;
   font-size: 0.95rem;
+}
+
+.quick-add__input:focus-visible {
+  outline: none;
+}
+
+.quick-add__submit {
+  border-radius: 999px;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  flex-shrink: 0;
+}
+
+.task-edit__critical-toggle {
+  grid-column: 1 / -1;
+  justify-self: start;
+  color: var(--muted);
+}
+
+.task-edit__critical-toggle.is-active {
+  color: var(--critical);
+  border-color: var(--critical);
 }
 
 /* ---------- filters ---------- */
@@ -328,7 +378,7 @@ select.field {
 }
 
 .task-row {
-  padding: 0.65rem 0.75rem;
+  padding: 0.5rem 0.6rem;
   transition: box-shadow 0.12s ease;
 }
 
@@ -393,8 +443,27 @@ select.field {
   flex: 1;
   display: flex;
   flex-direction: column;
+  align-items: flex-start;
   min-width: 0;
   gap: 0.1rem;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  padding: 0.2rem 0.3rem;
+  margin: -0.2rem -0.3rem;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background-color 0.12s ease;
+}
+
+.task-row__main:hover {
+  background: var(--surface-hover);
+}
+
+.task-row--expanded .task-row__main {
+  background: var(--surface-hover);
 }
 
 .task-row__title {

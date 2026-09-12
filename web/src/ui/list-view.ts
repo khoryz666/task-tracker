@@ -1,5 +1,6 @@
 import * as store from "../store.js";
 import { STATUS_LABEL, STATUS_ORDER, type Task, type TaskStatus } from "../types.js";
+import { createCollapse } from "./collapse.js";
 import { icon } from "./icons.js";
 
 interface Filters {
@@ -52,26 +53,108 @@ function field(labelText: string, input: HTMLElement, wide = false): HTMLDivElem
   return group;
 }
 
+function chevronToggle(): HTMLButtonElement {
+  const btn = el("button", "btn btn--icon expand-chevron");
+  btn.type = "button";
+  btn.append(icon("chevronDown", 15));
+  return btn;
+}
+
+/** The compact "quick add" bar, with an optional expandable panel for extra fields. */
+function mountQuickAdd(root: HTMLElement): void {
+  const form = el("form", "card quick-add");
+
+  const row = el("div", "quick-add__row");
+  const moreBtn = chevronToggle();
+  moreBtn.title = "More options";
+
+  const input = el("input", "quick-add__input field");
+  input.type = "text";
+  input.placeholder = "Add a task…";
+  input.required = true;
+
+  const submitBtn = el("button", "btn btn--primary btn--icon quick-add__submit");
+  submitBtn.type = "submit";
+  submitBtn.title = "Add task";
+  submitBtn.append(icon("plus", 18));
+
+  row.append(moreBtn, input, submitBtn);
+
+  const categoryInput = el("input", "task-edit__field field");
+  categoryInput.placeholder = "uncategorized";
+  const deadlineInput = el("input", "task-edit__field field");
+  deadlineInput.type = "date";
+  const weekInput = el("input", "task-edit__field field");
+  weekInput.type = "number";
+  const weightInput = el("input", "task-edit__field field");
+  weightInput.type = "number";
+  weightInput.min = "0";
+  weightInput.max = "100";
+
+  const criticalBtn = el("button", "btn task-edit__critical-toggle");
+  criticalBtn.type = "button";
+  criticalBtn.append(icon("starOutline", 14), document.createTextNode("Critical"));
+  let critical = false;
+  criticalBtn.addEventListener("click", () => {
+    critical = !critical;
+    criticalBtn.classList.toggle("is-active", critical);
+    criticalBtn.innerHTML = "";
+    criticalBtn.append(icon(critical ? "star" : "starOutline", 14), document.createTextNode("Critical"));
+  });
+
+  const options = el("div", "task-edit");
+  options.append(
+    field("Category", categoryInput),
+    field("Deadline", deadlineInput),
+    field("Week", weekInput),
+    field("Weight %", weightInput),
+  );
+  options.append(criticalBtn);
+
+  const collapse = createCollapse(options);
+  moreBtn.addEventListener("click", () => {
+    collapse.toggle();
+    moreBtn.classList.toggle("expand-chevron--open", collapse.isExpanded());
+  });
+
+  function reset(): void {
+    input.value = "";
+    categoryInput.value = "";
+    deadlineInput.value = "";
+    weekInput.value = "";
+    weightInput.value = "";
+    critical = false;
+    criticalBtn.classList.remove("is-active");
+    criticalBtn.innerHTML = "";
+    criticalBtn.append(icon("starOutline", 14), document.createTextNode("Critical"));
+    collapse.setExpanded(false);
+    moreBtn.classList.remove("expand-chevron--open");
+  }
+
+  form.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const title = input.value.trim();
+    if (!title) return;
+    void store.createTask({
+      title,
+      category: categoryInput.value.trim() || undefined,
+      deadline: deadlineInput.value || null,
+      week: weekInput.value ? Number(weekInput.value) : null,
+      weight: weightInput.value ? Number(weightInput.value) / 100 : null,
+      critical,
+    });
+    reset();
+    input.focus();
+  });
+
+  form.append(row, collapse.root);
+  root.append(form);
+}
+
 export function mountListView(root: HTMLElement): void {
   root.innerHTML = "";
 
-  const addForm = el("form", "quick-add");
-  const addInput = el("input", "quick-add__input field");
-  addInput.type = "text";
-  addInput.placeholder = "Add a task and hit Enter…";
-  addInput.required = true;
-  const addButton = el("button", "btn btn--primary");
-  addButton.type = "submit";
-  addButton.append(icon("plus"), document.createTextNode("Add"));
-  addForm.append(addInput, addButton);
-  addForm.addEventListener("submit", (e) => {
-    e.preventDefault();
-    const title = addInput.value.trim();
-    if (!title) return;
-    void store.createTask({ title });
-    addInput.value = "";
-    addInput.focus();
-  });
+  mountQuickAdd(root);
 
   const filterBar = el("div", "filter-bar");
   const categorySelect = el("select", "filter-bar__select field");
@@ -115,7 +198,7 @@ export function mountListView(root: HTMLElement): void {
   const listEl = el("ul", "task-list");
   const emptyState = el("p", "empty-state", "No tasks match. Add one above.");
 
-  root.append(addForm, filterBar, listEl, emptyState);
+  root.append(filterBar, listEl, emptyState);
 
   function renderCategoryOptions(tasks: Task[]): void {
     const categories = Array.from(new Set(tasks.map((t) => t.category))).sort();
@@ -142,9 +225,14 @@ export function mountListView(root: HTMLElement): void {
     statusBtn.title = "Click to advance status";
     if (task.status === "done") statusBtn.append(icon("check"));
     statusBtn.append(document.createTextNode(STATUS_LABEL[task.status]));
-    statusBtn.addEventListener("click", () => void store.updateTask(task.id, { status: nextStatus(task.status) }));
+    statusBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      void store.updateTask(task.id, { status: nextStatus(task.status) });
+    });
 
-    const main = el("div", "task-row__main");
+    const main = el("button", "task-row__main");
+    main.type = "button";
+    main.title = "Click to view/edit details";
     const title = el("span", "task-row__title", task.title);
     const meta = el("span", "task-row__meta");
     const bits: string[] = [task.category];
@@ -154,37 +242,46 @@ export function mountListView(root: HTMLElement): void {
     meta.textContent = bits.join(" · ");
     main.append(title, meta);
 
-    const critBtn = el("button", `btn btn--icon${task.critical ? " is-active task-row__critical" : " task-row__critical"}`);
+    const critBtn = el("button", `btn btn--icon task-row__critical${task.critical ? " is-active" : ""}`);
     critBtn.type = "button";
     critBtn.title = "Toggle critical";
     critBtn.append(icon(task.critical ? "star" : "starOutline"));
-    critBtn.addEventListener("click", () => void store.updateTask(task.id, { critical: !task.critical }));
-
-    const editBtn = el("button", "btn btn--icon");
-    editBtn.type = "button";
-    editBtn.title = "Edit";
-    editBtn.append(icon("pencil"));
+    critBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      void store.updateTask(task.id, { critical: !task.critical });
+    });
 
     const delBtn = el("button", "btn btn--icon btn--danger");
     delBtn.type = "button";
     delBtn.title = "Delete";
     delBtn.append(icon("trash"));
-    delBtn.addEventListener("click", () => {
+    delBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
       if (confirm(`Delete "${task.title}"?`)) void store.deleteTask(task.id);
     });
 
+    const chevron = chevronToggle();
+    chevron.title = "Expand";
+
     const editPanel = renderEditPanel(task);
-    editPanel.hidden = true;
-    editBtn.addEventListener("click", () => {
-      editPanel.hidden = !editPanel.hidden;
+    const collapse = createCollapse(editPanel);
+    function toggle(): void {
+      collapse.toggle();
+      chevron.classList.toggle("expand-chevron--open", collapse.isExpanded());
+      li.classList.toggle("task-row--expanded", collapse.isExpanded());
+    }
+    main.addEventListener("click", toggle);
+    chevron.addEventListener("click", (e) => {
+      e.stopPropagation();
+      toggle();
     });
 
     const actions = el("div", "task-row__actions");
-    actions.append(critBtn, editBtn, delBtn);
+    actions.append(critBtn, delBtn, chevron);
 
     const rowTop = el("div", "task-row__top");
     rowTop.append(statusBtn, main, actions);
-    li.append(rowTop, editPanel);
+    li.append(rowTop, collapse.root);
     return li;
   }
 
@@ -219,7 +316,8 @@ export function mountListView(root: HTMLElement): void {
     const saveBtn = el("button", "btn btn--primary");
     saveBtn.type = "button";
     saveBtn.append(icon("check"), document.createTextNode("Save"));
-    saveBtn.addEventListener("click", () => {
+    saveBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
       void store.updateTask(task.id, {
         category: categoryInput.value.trim() || "uncategorized",
         week: weekInput.value ? Number(weekInput.value) : null,
@@ -233,6 +331,7 @@ export function mountListView(root: HTMLElement): void {
       });
     });
 
+    panel.addEventListener("click", (e) => e.stopPropagation());
     panel.append(
       field("Category", categoryInput),
       field("Week", weekInput),
