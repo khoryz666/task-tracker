@@ -183,6 +183,15 @@ export function mountListView(root: HTMLElement): void {
       void store.updateTask(task.id, { critical: !task.critical });
     });
 
+    const dupBtn = el("button", "btn btn--icon");
+    dupBtn.type = "button";
+    dupBtn.title = "Duplicate";
+    dupBtn.append(icon("copy"));
+    dupBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      void store.duplicateTask(task.id);
+    });
+
     const delBtn = el("button", "btn btn--icon btn--danger");
     delBtn.type = "button";
     delBtn.title = "Delete";
@@ -209,7 +218,7 @@ export function mountListView(root: HTMLElement): void {
     });
 
     const actions = el("div", "task-row__actions");
-    actions.append(critBtn, delBtn, chevron);
+    actions.append(critBtn, dupBtn, delBtn, chevron);
 
     const rowTop = el("div", "task-row__top");
     rowTop.append(statusBtn, main, actions);
@@ -219,6 +228,10 @@ export function mountListView(root: HTMLElement): void {
 
   function renderEditPanel(task: Task): HTMLDivElement {
     const panel = el("div", "task-edit");
+
+    const titleInput = el("input", "task-edit__field field");
+    titleInput.value = task.title;
+    titleInput.required = true;
 
     const categoryInput = el("input", "task-edit__field field");
     categoryInput.value = task.category;
@@ -251,6 +264,7 @@ export function mountListView(root: HTMLElement): void {
     saveBtn.addEventListener("click", (e) => {
       e.stopPropagation();
       void store.updateTask(task.id, {
+        title: titleInput.value.trim() || task.title,
         category: categoryInput.value.trim() || "uncategorized",
         week: weekInput.value ? Number(weekInput.value) : null,
         weight: weightInput.value ? Number(weightInput.value) / 100 : null,
@@ -265,6 +279,7 @@ export function mountListView(root: HTMLElement): void {
 
     panel.addEventListener("click", (e) => e.stopPropagation());
     panel.append(
+      field("Title", titleInput, true),
       field("Category", categoryInput),
       field("Week", weekInput),
       field("Weight %", weightInput),

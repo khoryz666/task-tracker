@@ -67,6 +67,22 @@ export async function updateTask(id: string, patch: TaskPatch): Promise<void> {
   notify();
 }
 
+export async function duplicateTask(id: string): Promise<Task | undefined> {
+  const original = cache.find((t) => t.id === id);
+  if (!original) return undefined;
+  return createTask({
+    title: `${original.title} (copy)`,
+    category: original.category,
+    week: original.week,
+    critical: original.critical,
+    weight: original.weight,
+    deadline: original.deadline,
+    status: original.status,
+    notes: original.notes,
+    tags: [...original.tags],
+  });
+}
+
 export async function deleteTask(id: string): Promise<void> {
   // Soft delete (tombstone) so this deletion can propagate through sync
   // instead of being silently resurrected by an older copy on another device.
