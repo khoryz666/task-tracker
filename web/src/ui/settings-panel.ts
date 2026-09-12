@@ -1,4 +1,5 @@
 import { DATA_REPO } from "../config.js";
+import { deleteLocalDatabase } from "../db.js";
 import { disableNotifications, enableNotifications, isSubscribed, pushSupported } from "../push.js";
 import { clearGithubToken, getGithubToken, setGithubToken } from "../settings.js";
 import { syncNow } from "../sync.js";
@@ -147,7 +148,33 @@ export function mountSettingsPanel(anchorRoot: HTMLElement): void {
 
   notif.body.append(notifBtn, notifStatus);
 
-  body.append(sync.block, notif.block);
+  // ---- Danger zone ----
+  const danger = block("Danger zone");
+
+  const resetBtn = document.createElement("button");
+  resetBtn.type = "button";
+  resetBtn.className = "btn btn--danger";
+  resetBtn.append(icon("trash"), document.createTextNode("Reset local data"));
+
+  const resetStatus = document.createElement("p");
+  resetStatus.className = "settings-panel__status";
+  resetStatus.textContent = "Erases all tasks stored on this device. If sync is enabled, they'll re-download afterward; otherwise this is permanent.";
+
+  resetBtn.addEventListener("click", async () => {
+    const confirmed = confirm(
+      getGithubToken()
+        ? "Erase local tasks on this device? Since sync is enabled, they'll re-download from your data repo after reload."
+        : "Erase local tasks on this device? Sync is off, so this cannot be undone.",
+    );
+    if (!confirmed) return;
+    resetBtn.disabled = true;
+    await deleteLocalDatabase();
+    location.reload();
+  });
+
+  danger.body.append(resetBtn, resetStatus);
+
+  body.append(sync.block, notif.block, danger.block);
   dialog.append(body, closeBtn);
 
   // Close when clicking the backdrop (a click landing on the <dialog>

@@ -52,3 +52,15 @@ export async function putTasks(tasks: Task[]): Promise<void> {
 export function deleteTaskHard(id: string): Promise<void> {
   return tx("readwrite", (s) => s.delete(id) as unknown as IDBRequest<void>);
 }
+
+/** Wipes the local IndexedDB database. Callers should reload the page afterward. */
+export function deleteLocalDatabase(): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.deleteDatabase(DB_NAME);
+    req.onsuccess = () => resolve();
+    req.onerror = () => reject(req.error);
+    // A connection somewhere is still open (e.g. another tab); the delete
+    // finishes once it closes, which reloading this tab won't itself do.
+    req.onblocked = () => resolve();
+  });
+}

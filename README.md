@@ -76,7 +76,7 @@ Re-running `npm run setup` is safe — it detects the existing data repo and nev
 
 1. **Export first** if you want to keep anything (top toolbar → Export).
 2. **Remove the installed app** from each device — same as uninstalling any PWA (long-press/right-click the icon → uninstall or remove, or your browser's "installed apps" management page).
-3. **Clear local site data** per device if you want IndexedDB fully wiped: browser settings → site data/storage → find the Pages URL's origin → delete.
+3. **Wipe local data** per device via **Settings** (gear icon) → Danger zone → **Reset local data** — deletes the local IndexedDB store and reloads. (You can also do this manually: browser settings → site data/storage → find the Pages URL's origin → delete.)
 4. **Delete your data repo** on GitHub (`<your-fork>-data` → Settings → Delete this repository) — permanently removes synced task data from GitHub.
 5. **Revoke the fine-grained token** at <https://github.com/settings/personal-access-tokens> (deleting the repo doesn't automatically revoke tokens scoped to it).
 6. **Optional**: delete your forked app repo too, or just disable Pages (Settings → Pages) and the two workflows (Actions tab → select a workflow → "..." → Disable) if you'd rather keep the code around without anything running.
