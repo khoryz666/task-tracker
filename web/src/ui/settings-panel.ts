@@ -1,5 +1,6 @@
+import { DATA_REPO } from "../config.js";
 import { disableNotifications, enableNotifications, isSubscribed, pushSupported } from "../push.js";
-import { clearGithubToken, getGistId, getGithubToken, setGithubToken } from "../settings.js";
+import { clearGithubToken, getGithubToken, setGithubToken } from "../settings.js";
 import { syncNow } from "../sync.js";
 import { icon } from "./icons.js";
 
@@ -38,7 +39,7 @@ export function mountSettingsPanel(anchorRoot: HTMLElement): void {
   const tokenInput = document.createElement("input");
   tokenInput.type = "password";
   tokenInput.className = "field";
-  tokenInput.placeholder = "GitHub token (scope: gist)";
+  tokenInput.placeholder = "GitHub token (fine-grained, scoped to your data repo)";
   tokenInput.value = getGithubToken() ?? "";
   const toggleVisibilityBtn = document.createElement("button");
   toggleVisibilityBtn.type = "button";
@@ -68,26 +69,19 @@ export function mountSettingsPanel(anchorRoot: HTMLElement): void {
   const status = document.createElement("p");
   status.className = "settings-panel__status";
   status.textContent = getGithubToken()
-    ? "Sync is enabled: tasks sync automatically via a private GitHub gist."
-    : "No manual token needed if you used ./setup.sh - paste what it printed. Otherwise, create one at github.com/settings/tokens with only the 'gist' scope.";
+    ? "Sync is enabled: tasks sync automatically via your private data repo."
+    : "Paste what ./setup.sh printed for you. It created a private data repo and told you exactly how to make a token scoped to only that repo.";
 
-  const gistLink = document.createElement("a");
-  gistLink.className = "settings-panel__status";
-  gistLink.target = "_blank";
-  gistLink.rel = "noopener noreferrer";
-
-  function refreshGistLink(): void {
-    const gistId = getGistId();
-    if (gistId) {
-      gistLink.href = `https://gist.github.com/${gistId}`;
-      gistLink.innerHTML = "";
-      gistLink.append(icon("externalLink", 13), document.createTextNode(" View sync gist (its id is GIST_ID)"));
-      gistLink.hidden = false;
-    } else {
-      gistLink.hidden = true;
-    }
+  const repoLink = document.createElement("a");
+  repoLink.className = "settings-panel__status";
+  repoLink.target = "_blank";
+  repoLink.rel = "noopener noreferrer";
+  if (DATA_REPO.startsWith("REPLACE_")) {
+    repoLink.hidden = true;
+  } else {
+    repoLink.href = `https://github.com/${DATA_REPO}`;
+    repoLink.append(icon("externalLink", 13), document.createTextNode(" View data repo"));
   }
-  refreshGistLink();
 
   saveBtn.addEventListener("click", () => {
     const token = tokenInput.value.trim();
@@ -103,7 +97,6 @@ export function mountSettingsPanel(anchorRoot: HTMLElement): void {
           : res.status === "error"
             ? `Sync failed: ${res.message}`
             : "Sync enabled.";
-      refreshGistLink();
     });
   });
 
@@ -112,10 +105,9 @@ export function mountSettingsPanel(anchorRoot: HTMLElement): void {
     tokenInput.value = "";
     status.className = "settings-panel__status";
     status.textContent = "Sync disabled. Your local tasks are untouched.";
-    refreshGistLink();
   });
 
-  sync.body.append(tokenRow, syncActions, status, gistLink);
+  sync.body.append(tokenRow, syncActions, status, repoLink);
 
   // ---- Notifications ----
   const notif = block("Notifications");

@@ -1,9 +1,9 @@
-import { ensureGist, getGistFile, putGistFile } from "./gist.js";
+import { updateRepoFile } from "./data-repo.js";
 import { getGithubToken } from "./settings.js";
 import * as store from "./store.js";
 import type { Task } from "./types.js";
 
-const TASKS_FILE = "tasks.json";
+const TASKS_PATH = "tasks.json";
 
 interface TasksFile {
   version: number;
@@ -34,14 +34,12 @@ export async function syncNow(): Promise<SyncResult> {
   if (syncing) return { status: "skipped" };
   syncing = true;
   try {
-    const gistId = await ensureGist(token);
-    const remote = await getGistFile<TasksFile>(token, gistId, TASKS_FILE, { version: 1, tasks: [] });
-    const merged = merge(store.listRaw(), remote.tasks);
-
-    await store.replaceAll(merged);
-    await putGistFile(token, gistId, TASKS_FILE, { version: 1, tasks: merged });
-
-    return { status: "ok", taskCount: merged.length };
+    const merged = await updateRepoFile<TasksFile>(token, TASKS_PATH, { version: 1, tasks: [] }, (remote) => ({
+      version: 1,
+      tasks: merge(store.listRaw(), remote.tasks),
+    }));
+    await store.replaceAll(merged.tasks);
+    return { status: "ok", taskCount: merged.tasks.length };
   } catch (err) {
     return { status: "error", message: err instanceof Error ? err.message : String(err) };
   } finally {
