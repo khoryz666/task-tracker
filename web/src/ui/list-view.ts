@@ -60,13 +60,10 @@ function chevronToggle(): HTMLButtonElement {
   return btn;
 }
 
-/** The compact "quick add" bar, with an optional expandable panel for extra fields. */
+/** Just a title in, a task out - everything else is set later by expanding the task. */
 function mountQuickAdd(root: HTMLElement): void {
   const form = el("form", "card quick-add");
-
   const row = el("div", "quick-add__row");
-  const moreBtn = chevronToggle();
-  moreBtn.title = "More options";
 
   const input = el("input", "quick-add__input field");
   input.type = "text";
@@ -78,76 +75,18 @@ function mountQuickAdd(root: HTMLElement): void {
   submitBtn.title = "Add task";
   submitBtn.append(icon("plus", 18));
 
-  row.append(moreBtn, input, submitBtn);
-
-  const categoryInput = el("input", "task-edit__field field");
-  categoryInput.placeholder = "uncategorized";
-  const deadlineInput = el("input", "task-edit__field field");
-  deadlineInput.type = "date";
-  const weekInput = el("input", "task-edit__field field");
-  weekInput.type = "number";
-  const weightInput = el("input", "task-edit__field field");
-  weightInput.type = "number";
-  weightInput.min = "0";
-  weightInput.max = "100";
-
-  const criticalBtn = el("button", "btn task-edit__critical-toggle");
-  criticalBtn.type = "button";
-  criticalBtn.append(icon("starOutline", 14), document.createTextNode("Critical"));
-  let critical = false;
-  criticalBtn.addEventListener("click", () => {
-    critical = !critical;
-    criticalBtn.classList.toggle("is-active", critical);
-    criticalBtn.innerHTML = "";
-    criticalBtn.append(icon(critical ? "star" : "starOutline", 14), document.createTextNode("Critical"));
-  });
-
-  const options = el("div", "task-edit");
-  options.append(
-    field("Category", categoryInput),
-    field("Deadline", deadlineInput),
-    field("Week", weekInput),
-    field("Weight %", weightInput),
-  );
-  options.append(criticalBtn);
-
-  const collapse = createCollapse(options);
-  moreBtn.addEventListener("click", () => {
-    collapse.toggle();
-    moreBtn.classList.toggle("expand-chevron--open", collapse.isExpanded());
-  });
-
-  function reset(): void {
-    input.value = "";
-    categoryInput.value = "";
-    deadlineInput.value = "";
-    weekInput.value = "";
-    weightInput.value = "";
-    critical = false;
-    criticalBtn.classList.remove("is-active");
-    criticalBtn.innerHTML = "";
-    criticalBtn.append(icon("starOutline", 14), document.createTextNode("Critical"));
-    collapse.setExpanded(false);
-    moreBtn.classList.remove("expand-chevron--open");
-  }
+  row.append(input, submitBtn);
+  form.append(row);
 
   form.addEventListener("submit", (e) => {
     e.preventDefault();
     const title = input.value.trim();
     if (!title) return;
-    void store.createTask({
-      title,
-      category: categoryInput.value.trim() || undefined,
-      deadline: deadlineInput.value || null,
-      week: weekInput.value ? Number(weekInput.value) : null,
-      weight: weightInput.value ? Number(weightInput.value) / 100 : null,
-      critical,
-    });
-    reset();
+    void store.createTask({ title });
+    input.value = "";
     input.focus();
   });
 
-  form.append(row, collapse.root);
   root.append(form);
 }
 
@@ -233,14 +172,7 @@ export function mountListView(root: HTMLElement): void {
     const main = el("button", "task-row__main");
     main.type = "button";
     main.title = "Click to view/edit details";
-    const title = el("span", "task-row__title", task.title);
-    const meta = el("span", "task-row__meta");
-    const bits: string[] = [task.category];
-    if (task.week != null) bits.push(`wk ${task.week}`);
-    if (task.weight != null) bits.push(`${Math.round(task.weight * 100)}%`);
-    if (task.deadline) bits.push(`due ${task.deadline}`);
-    meta.textContent = bits.join(" · ");
-    main.append(title, meta);
+    main.append(el("span", "task-row__title", task.title));
 
     const critBtn = el("button", `btn btn--icon task-row__critical${task.critical ? " is-active" : ""}`);
     critBtn.type = "button";

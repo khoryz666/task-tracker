@@ -341,17 +341,6 @@ select.field {
   flex-shrink: 0;
 }
 
-.task-edit__critical-toggle {
-  grid-column: 1 / -1;
-  justify-self: start;
-  color: var(--muted);
-}
-
-.task-edit__critical-toggle.is-active {
-  color: var(--critical);
-  border-color: var(--critical);
-}
-
 /* ---------- filters ---------- */
 
 .filter-bar {
