@@ -1,0 +1,208 @@
+:root {
+  --bg: #f7f7f5;
+  --surface: #ffffff;
+  --text: #1a1a1a;
+  --muted: #6b6b6b;
+  --border: #e2e2df;
+  --accent: #2f6fed;
+  --critical: #c4402a;
+  --done: #2f8f5b;
+  --radius: 8px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #15161a;
+    --surface: #1e2025;
+    --text: #ececec;
+    --muted: #9a9a9a;
+    --border: #34363c;
+    --accent: #6d9bff;
+    --critical: #ff7a63;
+    --done: #4fd08a;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+.app-header {
+  padding: 1rem 1.25rem 0.5rem;
+}
+
+.app-header h1 {
+  font-size: 1.15rem;
+  margin: 0;
+}
+
+main#app {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 0.5rem 1rem 3rem;
+}
+
+.quick-add {
+  display: flex;
+  gap: 0.5rem;
+  margin-block: 0.75rem;
+}
+
+.quick-add__input {
+  flex: 1;
+  padding: 0.6rem 0.75rem;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 1rem;
+}
+
+.quick-add__button {
+  padding: 0.6rem 1rem;
+  border-radius: var(--radius);
+  border: none;
+  background: var(--accent);
+  color: white;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.filter-bar {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.75rem;
+}
+
+.filter-bar__select {
+  padding: 0.35rem 0.5rem;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+}
+
+.task-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.task-row {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.6rem 0.75rem;
+}
+
+.task-row--critical {
+  border-left: 3px solid var(--critical);
+}
+
+.task-row--done .task-row__title {
+  text-decoration: line-through;
+  color: var(--muted);
+}
+
+.task-row__top {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.task-row__status {
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text);
+  border-radius: 999px;
+  padding: 0.25rem 0.6rem;
+  font-size: 0.75rem;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.task-row__main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.task-row__title {
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+
+.task-row__meta {
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.task-row__critical,
+.task-row__edit,
+.task-row__delete {
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+
+.task-row__critical {
+  font-size: 1.1rem;
+  color: var(--critical);
+}
+
+.task-edit {
+  margin-top: 0.6rem;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.4rem;
+}
+
+.task-edit__field {
+  padding: 0.4rem 0.5rem;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+}
+
+.task-edit__notes {
+  grid-column: 1 / -1;
+  min-height: 4rem;
+  padding: 0.4rem 0.5rem;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+  font-family: inherit;
+  resize: vertical;
+}
+
+.task-edit__save {
+  grid-column: 1 / -1;
+  padding: 0.4rem;
+  border-radius: var(--radius);
+  border: none;
+  background: var(--accent);
+  color: white;
+  cursor: pointer;
+}
+
+.empty-state {
+  color: var(--muted);
+  text-align: center;
+  margin-top: 2rem;
+}
