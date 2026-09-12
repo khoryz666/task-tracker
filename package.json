@@ -1,0 +1,13 @@
+{
+  "name": "task-tracker",
+  "private": true,
+  "description": "Local-first task tracker PWA - dev/setup scripts",
+  "scripts": {
+    "build": "bash build.sh",
+    "serve": "bash serve.sh",
+    "dev": "npm run build && npm run serve",
+    "setup": "bash setup.sh",
+    "reminder:install": "npm --prefix scripts/reminder ci",
+    "reminder:run": "node scripts/reminder/index.mjs"
+  }
+}
