@@ -2,15 +2,13 @@
 
 A local-first task tracker for coursework and dev projects. Installable as a
 PWA on desktop and mobile, works fully offline, and needs no server to run.
-Optional automatic cross-device sync (via a private GitHub gist) and
-Groq-written reminder notifications (via Web Push) are opt-in, self-hosted
-add-ons - everything works without them.
+Automatic cross-device sync (via a private GitHub gist) and Groq-written
+reminder notifications (via Web Push) are one script away.
 
-No accounts, no database, no framework. Just static files, `tsc`, and
-(if you want them) two things GitHub already gives you for free: gists and
-Actions.
+No accounts, no database, no framework. Just static files, `tsc`, and two
+things GitHub already gives you for free: gists and Actions.
 
-## Quick start
+## Try it locally
 
 ```sh
 direnv allow        # or: nix develop
@@ -18,17 +16,48 @@ direnv allow        # or: nix develop
 ./serve.sh            # http://localhost:8000 (service workers need http(s), not file://)
 ```
 
-Open the URL, install it ("Install app" in Chrome/Edge, "Add to Home Screen"
-on mobile), and start adding tasks. That's the whole app - everything below
-is optional.
+## Get it running on your devices (one command)
+
+This deploys your own copy to GitHub Pages and wires up sync + notifications.
+Requires `gh` (provided by the dev shell) logged in (`gh auth login`), and
+this repo pushed to your own GitHub account.
+
+```sh
+./setup.sh
+```
+
+It will ask for two things:
+
+- a **GitHub token** (classic, scope: `gist` only - create one at
+  <https://github.com/settings/tokens>) - this is what powers sync, so it's
+  required
+- a **Groq API key** (optional - free at <https://console.groq.com/keys>) -
+  used to write the short encouraging line in reminders; skip it and
+  reminders still work with a plainer canned message
+
+Everything else is automatic: it generates a push-notification keypair,
+creates your private sync gist, sets all the GitHub Actions secrets, turns
+on GitHub Pages, and pushes. A minute or two later your app is live.
+
+Then, on **each device** (desktop and mobile): open the URL, install it
+("Install app" in Chrome/Edge, "Add to Home Screen" on mobile), open **Sync
+settings**, and paste the *same* token. That's the only manual step per
+device - it's what lets that device read/write your synced tasks and
+subscribe to reminders, and it can't be automated away for a backend-less
+app without weakening what "totally local" means.
+
+Re-running `./setup.sh` later is safe - it reuses your existing gist and
+just updates secrets/config.
 
 ## How it's built
 
 - **No backend.** All data lives in the browser's IndexedDB. `web/src/*.ts`
   compiles straight to native ES modules with `tsc` - no bundler, no
   framework, no `node_modules` for the app itself.
-- **No build server.** `flake.nix` pins Node + TypeScript via Nix so the
-  toolchain never drifts; `direnv` loads it automatically in this directory.
+- **No build server locally.** `flake.nix` pins Node + TypeScript + `gh` via
+  Nix so the toolchain never drifts; `direnv` loads it automatically here.
+- **No deploy step either.** `.github/workflows/deploy.yml` builds and
+  publishes to GitHub Pages on every push to `main`.
 - **Offline by default.** `web/sw-src/sw.ts` precaches the app shell; after
   the first load, the app works with no network at all.
 
@@ -45,77 +74,49 @@ web/src/sync.ts        auto cross-device sync (tasks.json)
 web/src/push.ts        Web Push subscription management
 ```
 
-## Deploying somewhere your phone can reach
+## What `setup.sh` actually does
 
-Since it's static files, any static host works - GitHub Pages, Netlify, or
-just copying `web/` (after `./build.sh`) onto a USB stick. For GitHub Pages:
+For transparency, in order:
 
-1. Push `web/` (built) to a `gh-pages` branch, or point Pages at `web/` on
-   `main` via repo Settings -> Pages.
-2. Visit the published URL on your phone and "Add to Home Screen".
+1. Generates a VAPID keypair (`npx web-push generate-vapid-keys`) for signing
+   push notifications.
+2. Creates a private gist (`tasks.json`) via the GitHub API using your token.
+3. Sets repo secrets via `gh secret set`: `GIST_PAT`, `GIST_ID`,
+   `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_CONTACT_EMAIL` (from your
+   git config), and `GROQ_API_KEY` if you gave one.
+4. Enables GitHub Pages with "Deploy from GitHub Actions" as the source.
+5. Writes the VAPID public key into `web/src/config.ts` (safe to commit -
+   it's public by design) and pushes that one commit, which triggers the
+   deploy workflow.
 
-No server-side config, no environment variables needed for the app itself.
+Nothing is sent anywhere except to GitHub's own APIs, using the token you
+provide. Your GitHub token itself is only ever pasted into the browser
+(stored in that browser's local storage) and into your repo's encrypted
+Actions secrets - never committed to the repo.
 
-## Enabling automatic cross-device sync
+## Sync and notifications, once set up
 
-Sync uses a private GitHub gist as the shared point between your devices -
-no new account, no server.
+- **Sync**: automatic on edit (debounced), on tab focus, and every few
+  minutes while the app is open, plus a manual **Sync now** button. Merge is
+  last-write-wins per task, including deletes.
+- **Notifications**: a daily GitHub Actions workflow
+  (`.github/workflows/reminder.yml`) reads your synced tasks, picks the most
+  urgent one due within 3 days (critical first), asks Groq for a short
+  encouraging line, and pushes it to every device you enabled notifications
+  on. Adjust the cron schedule in that file for a different time.
+- A separate `keepalive.yml` workflow makes a trivial monthly commit so
+  GitHub never auto-disables the scheduled reminder after 60 days of
+  inactivity - no manual attention needed, ever.
+- **Export/Import** (JSON file) still work independently of all the above,
+  for manual backups or one-off transfers.
 
-1. Create a token at <https://github.com/settings/tokens> (classic token,
-   scope: **gist** only - nothing else).
-2. Open the app -> **Sync settings** -> paste the token -> **Save & sync**.
-   The app creates a private gist on first sync and remembers its id.
-3. Repeat on your other device with the *same* token. From then on, tasks
-   sync automatically on edit, on tab focus, and every few minutes while the
-   app is open, plus a manual **Sync now** button.
+## A note on privacy
 
-Export/Import (JSON file) still work independently, for backups or one-off
-transfers.
-
-## Enabling reminder notifications
-
-A closed browser tab can't wake itself up, so real "remind me even if I
-haven't opened the app" notifications need something external to trigger
-them. This project uses a scheduled **GitHub Actions** workflow instead of a
-server: it runs on GitHub's infrastructure, reads your synced gist, and
-sends a real Web Push notification.
-
-**One-time setup:**
-
-1. **Generate a VAPID keypair** (used to sign push messages):
-   ```sh
-   npx web-push generate-vapid-keys
-   ```
-2. Put the **public** key in `web/src/config.ts` (`VAPID_PUBLIC_KEY`) and
-   rebuild/redeploy. The public key is safe to commit.
-3. In the app, do at least one sync (above) so a gist exists. **Sync
-   settings** then shows a "View sync gist" link - its id (the part of the
-   URL after `gist.github.com/`) is your `GIST_ID`.
-4. In the app, click **Enable notifications** (in Sync settings) on each
-   device you want reminders on.
-5. Get a free API key from <https://console.groq.com/keys> (used to write
-   the short encouraging message; the reminder still works without it, with
-   a plainer canned message).
-6. In your repo, go to **Settings -> Secrets and variables -> Actions** and
-   add these repository secrets:
-
-   | Secret | Value |
-   |---|---|
-   | `GIST_PAT` | the same token from step 1 of sync setup (scope: gist) |
-   | `GIST_ID` | the gist id from step 3 above |
-   | `VAPID_PUBLIC_KEY` | from step 1 |
-   | `VAPID_PRIVATE_KEY` | from step 1 - keep this one secret, never commit it |
-   | `VAPID_CONTACT_EMAIL` | any contact email (required by the Web Push spec) |
-   | `GROQ_API_KEY` | from step 5 (optional but recommended) |
-
-The `Task reminder` workflow (`.github/workflows/reminder.yml`) then runs
-daily, picks your most urgent task due within 3 days (critical tasks first),
-and pushes a short nudge to every device you enabled notifications on. Adjust
-the cron schedule in that file if you want a different time.
-
-A separate `Keepalive` workflow makes a trivial monthly commit so GitHub
-never auto-disables the scheduled reminder after 60 days of inactivity - no
-manual attention needed.
+GitHub Pages sites are publicly reachable at their URL (anyone with the link
+can open the app shell), and your GitHub token grants access to *all* your
+gists, not just this one - scope it to `gist` only and treat it like a
+password. Task data itself only ever leaves your device via your own private
+gist, readable only with that token.
 
 ## Extending it
 

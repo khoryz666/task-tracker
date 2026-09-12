@@ -17,6 +17,7 @@
             nodejs_22
             typescript
             python3
+            gh
           ];
 
           shellHook = ''
