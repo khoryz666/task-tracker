@@ -1,4 +1,5 @@
 import { exportToFile, importFromFile } from "./export.js";
+import { registerServiceWorker } from "./register-sw.js";
 import * as store from "./store.js";
 import { mountDashboardView } from "./ui/dashboard-view.js";
 import { mountListView } from "./ui/list-view.js";
@@ -73,6 +74,7 @@ function mountTabs(root: HTMLElement): { list: HTMLElement; dashboard: HTMLEleme
 }
 
 async function main(): Promise<void> {
+  registerServiceWorker();
   await store.init();
   const root = document.getElementById("app");
   if (!root) throw new Error("missing #app root element");
