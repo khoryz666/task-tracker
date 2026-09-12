@@ -15,14 +15,22 @@ function block(heading: string): { block: HTMLDivElement; body: HTMLDivElement }
   return { block: wrap, body };
 }
 
-export function mountSettingsPanel(root: HTMLElement): void {
-  const details = document.createElement("details");
-  details.className = "card settings-panel";
+/** Mounts a gear icon button into `anchorRoot` that opens the sync/notifications settings as a dialog. */
+export function mountSettingsPanel(anchorRoot: HTMLElement): void {
+  const dialog = document.createElement("dialog");
+  dialog.className = "settings-dialog";
 
-  const summary = document.createElement("summary");
-  summary.append(icon("cloud", 15), document.createTextNode("Sync & notifications"), icon("chevronDown", 16));
-  summary.lastElementChild!.classList.add("icon--chevron");
-  details.append(summary);
+  const dialogHeader = document.createElement("div");
+  dialogHeader.className = "settings-dialog__header";
+  const dialogTitle = document.createElement("h2");
+  dialogTitle.textContent = "Sync & notifications";
+  const closeBtn = document.createElement("button");
+  closeBtn.type = "button";
+  closeBtn.className = "btn btn--icon";
+  closeBtn.title = "Close";
+  closeBtn.append(icon("x"));
+  closeBtn.addEventListener("click", () => dialog.close());
+  dialogHeader.append(dialogTitle, closeBtn);
 
   const body = document.createElement("div");
   body.className = "settings-panel__body";
@@ -153,6 +161,21 @@ export function mountSettingsPanel(root: HTMLElement): void {
   notif.body.append(notifBtn, notifStatus);
 
   body.append(sync.block, notif.block);
-  details.append(body);
-  root.append(details);
+  dialog.append(dialogHeader, body);
+
+  // Close when clicking the backdrop (a click landing on the <dialog>
+  // element itself, outside its content box, only happens on the backdrop).
+  dialog.addEventListener("click", (e) => {
+    if (e.target === dialog) dialog.close();
+  });
+
+  const gearBtn = document.createElement("button");
+  gearBtn.type = "button";
+  gearBtn.className = "btn btn--icon";
+  gearBtn.title = "Sync & notification settings";
+  gearBtn.append(icon("gear"));
+  gearBtn.addEventListener("click", () => dialog.showModal());
+
+  anchorRoot.append(gearBtn);
+  document.body.append(dialog);
 }
