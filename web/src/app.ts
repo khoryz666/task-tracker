@@ -122,7 +122,7 @@ async function main(): Promise<void> {
 
   // Auto-sync: after every local edit (debounced), when the tab regains
   // focus, and on a periodic interval as a fallback while the app is open.
-  store.subscribe(() => scheduleSync());
+  store.subscribeLocalEdit(() => scheduleSync());
   document.addEventListener("visibilitychange", () => {
     if (document.visibilityState === "visible") void syncNow();
   });

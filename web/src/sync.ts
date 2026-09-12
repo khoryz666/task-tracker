@@ -38,7 +38,7 @@ export async function syncNow(): Promise<SyncResult> {
       version: 1,
       tasks: merge(store.listRaw(), remote.tasks),
     }));
-    await store.replaceAll(merged.tasks);
+    await store.replaceAll(merged.tasks, { isRemoteSync: true });
     return { status: "ok", taskCount: merged.tasks.length };
   } catch (err) {
     return { status: "error", message: err instanceof Error ? err.message : String(err) };
