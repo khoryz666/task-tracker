@@ -68,10 +68,12 @@ step "4/6 A fine-grained token, scoped to only the data repo (this part is manua
 echo
 echo "  1. Open: https://github.com/settings/personal-access-tokens/new"
 echo "  2. Resource owner: $OWNER"
-echo "  3. Repository access: \"Only select repositories\" -> $DATA_REPO"
-echo "  4. Permissions -> Repository permissions -> Contents: Read and write"
+echo "  3. Expiration: No expiration (set-and-forget - a fine-grained token"
+echo "     scoped to just this one repo is safe to leave permanent)"
+echo "  4. Repository access: \"Only select repositories\" -> $DATA_REPO"
+echo "  5. Permissions -> Repository permissions -> Contents: Read and write"
 echo "     (Metadata: Read-only gets added automatically - that's fine, required)"
-echo "  5. Generate, then paste it below."
+echo "  6. Generate, then paste it below."
 echo
 read -rsp "Fine-grained token: " DATA_REPO_PAT
 echo

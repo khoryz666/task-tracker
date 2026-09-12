@@ -6,36 +6,24 @@ Automatic cross-device sync and Groq-written reminder notifications are one
 command away, self-hosted entirely on infrastructure you already have a
 GitHub account for.
 
-No accounts of its own, no database, no framework. Just static files,
-`tsc`, and two things GitHub already gives you for free: private repos and
-Actions.
+This repo contains only static files, `tsc`, 
+and two things in GitHub for free: private repos and GitHub Actions.
 
 ---
 
 ## 1. Before you start
 
-- **Fork this repo to your own GitHub account - don't just clone the
-  original.** Setup creates a private data repo *under your account*, sets
-  Actions secrets *on your repo*, and turns on GitHub Pages *for your repo*
-  - none of that works against someone else's copy. Do it on GitHub's
-  website, or in one command:
-
-  ```sh
-  gh repo fork khoryz666/task-tracker --clone --remote
-  ```
-
-  (If you don't have `gh` yet, that's covered by the next step.)
-
+- **Fork this repo to your own GitHub account**
+  
 - **Nix, with flakes enabled, plus direnv and nix-direnv.** `flake.nix`
   pins every tool this project needs - Node, TypeScript, `gh`, Python -
-  so nothing is installed by hand and nothing drifts over time. If you
-  don't already have Nix/flakes/direnv set up, follow **section 1** of
-  [khoryz666/nix-template](https://github.com/khoryz666/nix-template) for
-  the full walkthrough.
+  so nothing is installed manually. If you don't already have Nix/flakes/direnv set up, 
+  follow **section 1** of [khoryz666/nix-template](https://github.com/khoryz666/nix-template) for the full walkthrough.
 
 - Once that's in place, from inside your forked clone:
 
   ```sh
+  cd <your-forked-repo-directory>
   direnv allow
   ```
 
@@ -60,12 +48,13 @@ It will ask you for two things:
   writes the short encouraging line in reminders; skip it and reminders
   still work with a plainer canned message.
 - a **fine-grained GitHub token**, scoped to only a new private data repo
-  it creates for you (`<your-fork>-data`). This is the **one thing that
-  can't be automated** - GitHub deliberately never lets a script mint a
-  token on your behalf - so the script prints the exact repo to select and
-  the exact permission to grant (`Contents: read and write`), then pauses
-  for you to paste the generated token back in. It verifies the token
-  actually works before continuing.
+  it creates for you (`<your-fork>-data`), set to **No expiration** - this
+  is meant to be set-and-forget, not renewed periodically. This is the
+  **only thing that can't be automated** - GitHub deliberately never lets a
+  script mint a token on your behalf - so the script prints the exact
+  repo to select and the exact permission to grant (`Contents: read and
+  write`), then pauses for you to paste the generated token back in. It
+  verifies the token actually works before continuing.
 
 Everything else is automatic, in order:
 
@@ -98,32 +87,33 @@ holding it can read and rewrite all of your task data. GitHub Pages sites
 are publicly reachable at their URL, but that's just code with no data or
 secrets in it.
 
-Re-running `npm run setup` later is safe - it detects the existing data
+Re-running `npm run setup` after that is safe - it simply detects the existing data
 repo and never re-seeds or wipes it, it just updates secrets/config.
 
 ---
 
 ## 3. Maintaining and migrating
 
-**Day to day, there's nothing to maintain.** No server runs anywhere; the
+**Nothing to maintain.** No server runs anywhere; the
 `Keepalive` workflow (`.github/workflows/keepalive.yml`) makes a trivial
 monthly commit purely so GitHub doesn't auto-disable the scheduled reminder
-after 60 days of repo inactivity - that's the one thing that happens on a
-timer, and it needs no attention.
+after 60 days of repo inactivity.
 
-**How sync behaves, so you know what "working" looks like:** automatic on
-edit (debounced a couple seconds), on tab focus, and every few minutes
-while the app is open, plus a manual **Sync now** button. Writes use the
-Contents API's optimistic concurrency (the file's current `sha`) and retry
-on a conflict by re-reading and re-merging, so two devices syncing at the
-same moment can't silently clobber each other. The merge itself is
-last-write-wins per task, including deletes.
+**How sync behaves:** automatic on edit (debounced a couple seconds), 
+on tab focus, and every few minutes while the app is open, 
+plus a manual **Sync now** button. Writes use the Contents API's optimistic concurrency (the file's current `sha`) 
+and retry on a conflict by re-reading and re-merging, so two devices syncing at the
+same moment can't silently clobber each other. The merge itself is last-write-wins per task, including deletes.
 
-**Rotating your token**: generate a new fine-grained token the same way
-setup described (scoped to your `<fork>-data` repo, `Contents: read and
-write`), then:
-- update it in **Settings** on each device, and
-- update the Actions secret: `gh secret set DATA_REPO_PAT --repo <your-fork> --body "<new token>"`.
+**The token doesn't expire** (setup has you pick "No expiration" when
+creating it) - this is genuinely set-and-forget, not something to renew on
+a schedule. You only need to replace it if you *want* to, e.g. you suspect
+it leaked. If so: generate a new fine-grained token the same way setup
+described (scoped to your `<fork>-data` repo, `Contents: read and write`,
+no expiration), then:
+- update it in **Settings** on each device,
+- update the Actions secret: `gh secret set DATA_REPO_PAT --repo <your-fork> --body "<new token>"`, and
+- revoke the old one at <https://github.com/settings/personal-access-tokens> - generating a new token doesn't invalidate the old one on its own.
 
 **Migrating to a new device**: install the app from your Pages URL, open
 Settings, paste your existing token - it'll pull your synced tasks
@@ -164,8 +154,7 @@ Actions secrets to match.
    workflow -> "..." -> Disable) if you'd rather keep the code around
    without anything running.
 
-None of this affects the original `khoryz666/task-tracker` repo or anyone
-else's fork - everything above is scoped to your own copy.
+Everything above is scoped to your own copy only.
 
 ---
 
@@ -184,14 +173,6 @@ web/sw-src/sw.ts          service worker (offline cache + push handling)
 scripts/reminder/         the daily reminder job the Actions workflow runs
 .github/workflows/        deploy.yml (Pages), reminder.yml (cron), keepalive.yml
 ```
-
-**Architecture, in short**: no backend. All task data lives in the
-browser's IndexedDB; `web/src/*.ts` compiles straight to native ES modules
-via `tsc` - no bundler, no framework, no `node_modules` for the app itself.
-`flake.nix` pins the whole local toolchain; `.github/workflows/deploy.yml`
-builds and publishes to GitHub Pages on every push to `main`, so there's no
-manual deploy step either. `web/sw-src/sw.ts` precaches the app shell, so
-it works fully offline after the first load.
 
 **Dev loop**:
 
@@ -224,7 +205,4 @@ enough app that manual testing covers it. Useful checks:
   npm run reminder:run
   ```
 
-**Extending it**: everything is plain TypeScript with no framework lock-in
-- add a field to `Task` in `types.ts`, handle it in `store.ts`, and surface
-it in the UI. Existing local data keeps working since IndexedDB records
-are just objects; new optional fields don't require a migration.
+**Extending it**: everything is plain TypeScript with no framework lock-in.
