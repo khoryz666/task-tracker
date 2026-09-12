@@ -18,8 +18,11 @@ const CORE_ASSETS = [
   "./dist/db.js",
   "./dist/types.js",
   "./dist/export.js",
+  "./dist/settings.js",
+  "./dist/sync.js",
   "./dist/ui/list-view.js",
   "./dist/ui/dashboard-view.js",
+  "./dist/ui/settings-panel.js",
   "./icons/icon-192.png",
   "./icons/icon-512.png",
 ];

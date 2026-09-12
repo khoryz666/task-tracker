@@ -229,6 +229,39 @@ main#app {
   font-size: 0.8rem;
 }
 
+.settings-panel {
+  margin-top: 2rem;
+  border-top: 1px solid var(--border);
+  padding-top: 0.75rem;
+  color: var(--muted);
+}
+
+.settings-panel summary {
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+
+.settings-panel__body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 0.6rem;
+  max-width: 28rem;
+}
+
+.settings-panel__field {
+  padding: 0.4rem 0.5rem;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+}
+
+.settings-panel__status {
+  font-size: 0.8rem;
+  margin: 0;
+}
+
 .tab-bar {
   display: flex;
   gap: 0.4rem;
