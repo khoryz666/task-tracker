@@ -1,12 +1,14 @@
 #!/usr/bin/env bash
-# One-time setup: creates the sync gist, generates push notification keys,
-# configures GitHub Actions secrets, and turns on GitHub Pages. Safe to
-# re-run (it reuses/updates existing config instead of duplicating it).
+# One-time setup: creates a dedicated PRIVATE data repo, generates push
+# notification keys, configures GitHub Actions secrets, and turns on GitHub
+# Pages. Safe to re-run (it reuses existing config instead of duplicating
+# it, and never re-seeds the data repo if it already exists).
 set -euo pipefail
 cd "$(dirname "$0")"
 
 bold() { printf '\033[1m%s\033[0m\n' "$1"; }
 step() { bold "-> $1"; }
+b64() { node -e 'console.log(Buffer.from(process.argv[1]).toString("base64"))' "$1"; }
 
 bold "Task Tracker setup"
 echo "This wires up automatic sync + reminder notifications for your own copy"
@@ -17,29 +19,17 @@ for cmd in gh node curl git; do
   command -v "$cmd" >/dev/null || { echo "Missing '$cmd'. Run this inside 'nix develop'."; exit 1; }
 done
 
-# No manual "create a classic token" step: this reuses (and if needed,
-# upgrades) your existing `gh` CLI login. SSH keys authenticate git
-# push/pull, which is separate - the sync gist and Actions secrets are
-# plain HTTPS calls to GitHub's REST API, which need a bearer token
-# regardless of how your git transport is configured. `gh` already holds
-# one; we just make sure it carries the 'gist' scope.
-step "Checking GitHub CLI authentication"
-if ! gh auth status >/dev/null 2>&1; then
-  echo "Not logged in yet - this opens your browser to sign in."
-  gh auth login -h github.com -s gist -w
-fi
-if ! gh auth status 2>&1 | grep -qi "'gist'"; then
-  echo "Your gh session is missing the 'gist' scope - requesting it (opens your browser)."
-  gh auth refresh -h github.com -s gist
-fi
-GIST_PAT=${GIST_PAT:-$(gh auth token)} # override by exporting GIST_PAT yourself (e.g. a narrower classic token)
+gh auth status >/dev/null 2>&1 || { echo "Not logged in yet - launching 'gh auth login'."; gh auth login -h github.com -w; }
 
 REPO=$(gh repo view --json nameWithOwner -q .nameWithOwner 2>/dev/null) || {
   echo "Couldn't detect a GitHub repo for this directory."
   echo "Push it to GitHub first (e.g. 'gh repo create --source=. --push'), then re-run."
   exit 1
 }
-echo "Repo: $REPO"
+OWNER=${REPO%%/*}
+DATA_REPO="$OWNER/${REPO##*/}-data"
+echo "App repo:  $REPO (public, just code - stays as is)"
+echo "Data repo: $DATA_REPO (private - your tasks live here)"
 echo
 
 read -rsp "Groq API key (optional, for AI-written reminders - https://console.groq.com/keys) [Enter to skip]: " GROQ_API_KEY
@@ -49,23 +39,52 @@ echo
 EMAIL=$(git config user.email 2>/dev/null || true)
 EMAIL=${EMAIL:-example@example.com}
 
-step "1/5 Generating a VAPID keypair for push notifications"
+step "1/6 Creating your private data repo"
+DATA_REPO_IS_NEW=false
+if gh repo view "$DATA_REPO" >/dev/null 2>&1; then
+  echo "   $DATA_REPO already exists - reusing it, not touching its contents."
+else
+  gh repo create "$DATA_REPO" --private --description "task-tracker sync data (do not edit by hand)" >/dev/null
+  DATA_REPO_IS_NEW=true
+  echo "   Created https://github.com/$DATA_REPO"
+fi
+
+if [ "$DATA_REPO_IS_NEW" = true ]; then
+  step "2/6 Seeding tasks.json and subscriptions.json"
+  gh api -X PUT "repos/$DATA_REPO/contents/tasks.json" \
+    -f message="init: seed tasks.json" -f content="$(b64 '{"version":1,"tasks":[]}')" >/dev/null
+  gh api -X PUT "repos/$DATA_REPO/contents/subscriptions.json" \
+    -f message="init: seed subscriptions.json" -f content="$(b64 '{"version":1,"subscriptions":[]}')" >/dev/null
+else
+  step "2/6 Skipping seed (data repo already has data)"
+fi
+
+step "3/6 Generating a VAPID keypair for push notifications"
 VAPID_JSON=$(npx --yes web-push@3 generate-vapid-keys --json)
 VAPID_PUBLIC_KEY=$(node -e 'console.log(JSON.parse(process.argv[1]).publicKey)' "$VAPID_JSON")
 VAPID_PRIVATE_KEY=$(node -e 'console.log(JSON.parse(process.argv[1]).privateKey)' "$VAPID_JSON")
 
-step "2/5 Creating your private sync gist"
-GIST_RESPONSE=$(curl -sf -X POST https://api.github.com/gists \
-  -H "Authorization: Bearer $GIST_PAT" \
-  -H "Accept: application/vnd.github+json" \
-  -d '{"description":"task-tracker sync data (do not edit by hand)","public":false,"files":{"tasks.json":{"content":"{\"version\":1,\"tasks\":[]}"}}}') \
-  || { echo "Gist creation failed - check that the token has the 'gist' scope."; exit 1; }
-GIST_ID=$(node -e 'console.log(JSON.parse(process.argv[1]).id)' "$GIST_RESPONSE")
-echo "   https://gist.github.com/$GIST_ID"
+step "4/6 A fine-grained token, scoped to only the data repo (this part is manual - GitHub deliberately doesn't let any script mint tokens on your behalf)"
+echo
+echo "  1. Open: https://github.com/settings/personal-access-tokens/new"
+echo "  2. Resource owner: $OWNER"
+echo "  3. Repository access: \"Only select repositories\" -> $DATA_REPO"
+echo "  4. Permissions -> Repository permissions -> Contents: Read and write"
+echo "     (Metadata: Read-only gets added automatically - that's fine, required)"
+echo "  5. Generate, then paste it below."
+echo
+read -rsp "Fine-grained token: " DATA_REPO_PAT
+echo
+[ -n "$DATA_REPO_PAT" ] || { echo "A token is required."; exit 1; }
 
-step "3/5 Setting GitHub Actions secrets on $REPO"
-gh secret set GIST_PAT --repo "$REPO" --body "$GIST_PAT"
-gh secret set GIST_ID --repo "$REPO" --body "$GIST_ID"
+echo "   Verifying it can reach $DATA_REPO..."
+curl -sf -H "Authorization: Bearer $DATA_REPO_PAT" -H "Accept: application/vnd.github+json" \
+  "https://api.github.com/repos/$DATA_REPO" >/dev/null \
+  || { echo "Couldn't read $DATA_REPO with that token - check the repo/permissions and re-run."; exit 1; }
+
+step "5/6 Setting GitHub Actions secrets/variables on $REPO"
+gh secret set DATA_REPO_PAT --repo "$REPO" --body "$DATA_REPO_PAT"
+gh variable set DATA_REPO --repo "$REPO" --body "$DATA_REPO"
 gh secret set VAPID_PUBLIC_KEY --repo "$REPO" --body "$VAPID_PUBLIC_KEY"
 gh secret set VAPID_PRIVATE_KEY --repo "$REPO" --body "$VAPID_PRIVATE_KEY"
 gh secret set VAPID_CONTACT_EMAIL --repo "$REPO" --body "$EMAIL"
@@ -75,22 +94,23 @@ else
   echo "   (skipped GROQ_API_KEY - reminders will use a plain canned message)"
 fi
 
-step "4/5 Enabling GitHub Pages (deployed via Actions)"
+step "5.5/6 Enabling GitHub Pages (deployed via Actions)"
 gh api -X POST "repos/$REPO/pages" -f build_type=workflow >/dev/null 2>&1 || true
 
-step "5/5 Embedding the VAPID public key and publishing"
+step "6/6 Embedding VAPID_PUBLIC_KEY + DATA_REPO and publishing"
 node -e '
 const fs = require("fs");
 const path = "web/src/config.ts";
-const key = process.argv[1];
-const content = fs.readFileSync(path, "utf8")
-  .replace(/export const VAPID_PUBLIC_KEY = ".*";/, `export const VAPID_PUBLIC_KEY = "${key}";`);
+const [pubKey, dataRepo] = process.argv.slice(1);
+let content = fs.readFileSync(path, "utf8");
+content = content.replace(/export const VAPID_PUBLIC_KEY = ".*";/, `export const VAPID_PUBLIC_KEY = "${pubKey}";`);
+content = content.replace(/export const DATA_REPO = ".*";/, `export const DATA_REPO = "${dataRepo}";`);
 fs.writeFileSync(path, content);
-' "$VAPID_PUBLIC_KEY"
+' "$VAPID_PUBLIC_KEY" "$DATA_REPO"
 
 git add web/src/config.ts
 if ! git diff --cached --quiet; then
-  git commit -m "chore: configure VAPID public key" >/dev/null
+  git commit -m "chore: configure VAPID public key + data repo" >/dev/null
   git push
   echo "   Pushed - the Deploy workflow will publish it shortly."
 else
@@ -108,13 +128,11 @@ else
 fi
 echo
 echo "On each device (desktop and mobile): open that URL, install it, open"
-echo "Sync settings, and paste this token (treat it like a password):"
+echo "Settings (gear icon), and paste this token (treat it like a password):"
 echo
-echo "  $GIST_PAT"
+echo "  $DATA_REPO_PAT"
 echo
-echo "That enables sync and lets you turn on notifications there. It's your"
-echo "'gh' CLI's own token (now including the gist scope) - note it also"
-echo "carries gh's other default scopes (repo, workflow, etc.), broader than"
-echo "a gist-only classic token would be. Revoke it any time from"
-echo "https://github.com/settings/applications (GitHub CLI) or 'gh auth"
-echo "logout'; a fresh 'gh auth login' + re-running this script issues a new one."
+echo "That enables sync and lets you turn on notifications there. This token"
+echo "can only read/write $DATA_REPO - nothing else in your GitHub account,"
+echo "not even your other gists or repos. Revoke/rotate it any time from"
+echo "https://github.com/settings/personal-access-tokens."

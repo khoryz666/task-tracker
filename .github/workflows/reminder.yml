@@ -23,8 +23,8 @@ jobs:
       - name: Send reminder
         working-directory: scripts/reminder
         env:
-          GIST_PAT: ${{ secrets.GIST_PAT }}
-          GIST_ID: ${{ secrets.GIST_ID }}
+          DATA_REPO_PAT: ${{ secrets.DATA_REPO_PAT }}
+          DATA_REPO: ${{ vars.DATA_REPO }}
           VAPID_PUBLIC_KEY: ${{ secrets.VAPID_PUBLIC_KEY }}
           VAPID_PRIVATE_KEY: ${{ secrets.VAPID_PRIVATE_KEY }}
           VAPID_CONTACT_EMAIL: ${{ secrets.VAPID_CONTACT_EMAIL }}

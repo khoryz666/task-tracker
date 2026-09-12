@@ -1,23 +1,24 @@
 import webpush from "web-push";
 
-const { GIST_PAT, GIST_ID, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY, VAPID_CONTACT_EMAIL, GROQ_API_KEY } = process.env;
+const { DATA_REPO_PAT, DATA_REPO, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY, VAPID_CONTACT_EMAIL, GROQ_API_KEY } =
+  process.env;
 
 function requireEnv(name, value) {
   if (!value) throw new Error(`Missing required env var: ${name}`);
   return value;
 }
 
-async function fetchGistFile(filename, fallback) {
-  const res = await fetch(`https://api.github.com/gists/${GIST_ID}`, {
+async function fetchRepoFile(path, fallback) {
+  const res = await fetch(`https://api.github.com/repos/${DATA_REPO}/contents/${path}`, {
     headers: {
-      Authorization: `Bearer ${GIST_PAT}`,
+      Authorization: `Bearer ${DATA_REPO_PAT}`,
       Accept: "application/vnd.github+json",
     },
   });
-  if (!res.ok) throw new Error(`Failed to fetch gist: HTTP ${res.status}`);
+  if (res.status === 404) return fallback;
+  if (!res.ok) throw new Error(`Failed to fetch ${path}: HTTP ${res.status}`);
   const json = await res.json();
-  const content = json.files[filename]?.content;
-  return content ? JSON.parse(content) : fallback;
+  return JSON.parse(Buffer.from(json.content, "base64").toString("utf8"));
 }
 
 function daysUntil(deadline) {
@@ -80,8 +81,8 @@ async function encouragingLine(task) {
 }
 
 async function main() {
-  requireEnv("GIST_PAT", GIST_PAT);
-  requireEnv("GIST_ID", GIST_ID);
+  requireEnv("DATA_REPO_PAT", DATA_REPO_PAT);
+  requireEnv("DATA_REPO", DATA_REPO);
   requireEnv("VAPID_PUBLIC_KEY", VAPID_PUBLIC_KEY);
   requireEnv("VAPID_PRIVATE_KEY", VAPID_PRIVATE_KEY);
 
@@ -91,8 +92,8 @@ async function main() {
     VAPID_PRIVATE_KEY,
   );
 
-  const { tasks = [] } = await fetchGistFile("tasks.json", { tasks: [] });
-  const { subscriptions = [] } = await fetchGistFile("subscriptions.json", { subscriptions: [] });
+  const { tasks = [] } = await fetchRepoFile("tasks.json", { tasks: [] });
+  const { subscriptions = [] } = await fetchRepoFile("subscriptions.json", { subscriptions: [] });
 
   if (subscriptions.length === 0) {
     console.log("No push subscriptions registered yet - nothing to do.");
