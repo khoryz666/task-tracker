@@ -20,15 +20,12 @@ export function mountSettingsPanel(anchorRoot: HTMLElement): void {
   const dialog = document.createElement("dialog");
   dialog.className = "settings-dialog";
 
-  const dialogHeader = document.createElement("div");
-  dialogHeader.className = "settings-dialog__header";
   const closeBtn = document.createElement("button");
   closeBtn.type = "button";
-  closeBtn.className = "btn btn--icon";
+  closeBtn.className = "btn btn--icon settings-dialog__close";
   closeBtn.title = "Close";
   closeBtn.append(icon("x"));
   closeBtn.addEventListener("click", () => dialog.close());
-  dialogHeader.append(closeBtn);
 
   const body = document.createElement("div");
   body.className = "settings-panel__body";
@@ -159,7 +156,7 @@ export function mountSettingsPanel(anchorRoot: HTMLElement): void {
   notif.body.append(notifBtn, notifStatus);
 
   body.append(sync.block, notif.block);
-  dialog.append(dialogHeader, body);
+  dialog.append(body, closeBtn);
 
   // Close when clicking the backdrop (a click landing on the <dialog>
   // element itself, outside its content box, only happens on the backdrop).

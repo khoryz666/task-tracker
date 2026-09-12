@@ -541,8 +541,9 @@ select.field {
 /* ---------- settings dialog ---------- */
 
 .settings-dialog {
+  position: relative;
   width: min(26rem, calc(100vw - 2rem));
-  padding: 1.1rem 1.25rem 1.25rem;
+  padding: 1.25rem;
   border: 1px solid var(--border);
   border-radius: var(--radius);
   background: var(--surface);
@@ -555,18 +556,17 @@ select.field {
   backdrop-filter: blur(1px);
 }
 
-.settings-dialog__header {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  margin-bottom: 0.25rem;
+.settings-dialog__close {
+  position: absolute;
+  top: 0.6rem;
+  right: 0.6rem;
 }
 
 .settings-panel__body {
   display: flex;
   flex-direction: column;
   gap: 1.1rem;
-  margin-top: 0.5rem;
+  padding-right: 1.75rem;
 }
 
 .settings-panel__block {
