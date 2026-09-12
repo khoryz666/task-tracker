@@ -1,0 +1,32 @@
+name: Task reminder
+
+on:
+  schedule:
+    # ~9am in UTC+8; adjust to taste (times are UTC).
+    - cron: "0 1 * * *"
+  workflow_dispatch: {}
+
+jobs:
+  remind:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        working-directory: scripts/reminder
+        run: npm ci --omit=dev
+
+      - name: Send reminder
+        working-directory: scripts/reminder
+        env:
+          GIST_PAT: ${{ secrets.GIST_PAT }}
+          GIST_ID: ${{ secrets.GIST_ID }}
+          VAPID_PUBLIC_KEY: ${{ secrets.VAPID_PUBLIC_KEY }}
+          VAPID_PRIVATE_KEY: ${{ secrets.VAPID_PRIVATE_KEY }}
+          VAPID_CONTACT_EMAIL: ${{ secrets.VAPID_CONTACT_EMAIL }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+        run: node index.mjs
