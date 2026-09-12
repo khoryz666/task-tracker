@@ -206,3 +206,8 @@ enough app that manual testing covers it. Useful checks:
   ```
 
 **Extending it**: everything is plain TypeScript with no framework lock-in.
+
+---
+
+Copyright © khoryz666. Source: <https://github.com/khoryz666/task-tracker>.
+Licensed under the GNU GPLv3 - see [LICENSE](LICENSE).
