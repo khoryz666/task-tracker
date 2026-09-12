@@ -1,0 +1,7 @@
+web/dist/
+web/sw.js
+node_modules/
+.direnv/
+scripts/reminder/node_modules/
+*.log
+.DS_Store
