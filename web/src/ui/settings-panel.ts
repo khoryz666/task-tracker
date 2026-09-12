@@ -22,15 +22,13 @@ export function mountSettingsPanel(anchorRoot: HTMLElement): void {
 
   const dialogHeader = document.createElement("div");
   dialogHeader.className = "settings-dialog__header";
-  const dialogTitle = document.createElement("h2");
-  dialogTitle.textContent = "Sync & notifications";
   const closeBtn = document.createElement("button");
   closeBtn.type = "button";
   closeBtn.className = "btn btn--icon";
   closeBtn.title = "Close";
   closeBtn.append(icon("x"));
   closeBtn.addEventListener("click", () => dialog.close());
-  dialogHeader.append(dialogTitle, closeBtn);
+  dialogHeader.append(closeBtn);
 
   const body = document.createElement("div");
   body.className = "settings-panel__body";
