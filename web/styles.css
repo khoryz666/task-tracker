@@ -44,6 +44,14 @@
   box-sizing: border-box;
 }
 
+/* The [hidden] attribute must win over any class's own `display`, e.g.
+   dashboardPanel.hidden = true vs. .dashboard { display: flex } - without
+   this, author-origin CSS beats the browser's default [hidden] rule and the
+   "hidden" element stays visible regardless of the attribute. */
+[hidden] {
+  display: none !important;
+}
+
 body {
   margin: 0;
   background: var(--bg);
