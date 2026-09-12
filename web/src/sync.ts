@@ -1,58 +1,13 @@
-import { getGistId, getGithubToken, setGistId } from "./settings.js";
+import { ensureGist, getGistFile, putGistFile } from "./gist.js";
+import { getGithubToken } from "./settings.js";
 import * as store from "./store.js";
 import type { Task } from "./types.js";
 
-const GIST_FILENAME = "tasks.json";
-const GIST_DESCRIPTION = "task-tracker sync data (do not edit by hand)";
-const API = "https://api.github.com";
+const TASKS_FILE = "tasks.json";
 
-interface SyncFile {
+interface TasksFile {
   version: number;
   tasks: Task[];
-}
-
-function authHeaders(token: string): HeadersInit {
-  return {
-    Authorization: `Bearer ${token}`,
-    Accept: "application/vnd.github+json",
-    "Content-Type": "application/json",
-  };
-}
-
-async function createGist(token: string): Promise<string> {
-  const body: SyncFile = { version: 1, tasks: [] };
-  const res = await fetch(`${API}/gists`, {
-    method: "POST",
-    headers: authHeaders(token),
-    body: JSON.stringify({
-      description: GIST_DESCRIPTION,
-      public: false,
-      files: { [GIST_FILENAME]: { content: JSON.stringify(body, null, 2) } },
-    }),
-  });
-  if (!res.ok) throw new Error(`Could not create sync gist (HTTP ${res.status})`);
-  const json = (await res.json()) as { id: string };
-  setGistId(json.id);
-  return json.id;
-}
-
-async function fetchGist(token: string, gistId: string): Promise<SyncFile> {
-  const res = await fetch(`${API}/gists/${gistId}`, { headers: authHeaders(token) });
-  if (!res.ok) throw new Error(`Could not fetch sync gist (HTTP ${res.status})`);
-  const json = (await res.json()) as { files: Record<string, { content?: string } | undefined> };
-  const content = json.files[GIST_FILENAME]?.content;
-  if (!content) return { version: 1, tasks: [] };
-  return JSON.parse(content) as SyncFile;
-}
-
-async function pushGist(token: string, gistId: string, tasks: Task[]): Promise<void> {
-  const body: SyncFile = { version: 1, tasks };
-  const res = await fetch(`${API}/gists/${gistId}`, {
-    method: "PATCH",
-    headers: authHeaders(token),
-    body: JSON.stringify({ files: { [GIST_FILENAME]: { content: JSON.stringify(body, null, 2) } } }),
-  });
-  if (!res.ok) throw new Error(`Could not push sync gist (HTTP ${res.status})`);
 }
 
 /** Last-write-wins per task id, including tombstones so deletes propagate. */
@@ -79,12 +34,12 @@ export async function syncNow(): Promise<SyncResult> {
   if (syncing) return { status: "skipped" };
   syncing = true;
   try {
-    const gistId = getGistId() ?? (await createGist(token));
-    const remote = await fetchGist(token, gistId);
+    const gistId = await ensureGist(token);
+    const remote = await getGistFile<TasksFile>(token, gistId, TASKS_FILE, { version: 1, tasks: [] });
     const merged = merge(store.listRaw(), remote.tasks);
 
     await store.replaceAll(merged);
-    await pushGist(token, gistId, merged);
+    await putGistFile(token, gistId, TASKS_FILE, { version: 1, tasks: merged });
 
     return { status: "ok", taskCount: merged.length };
   } catch (err) {

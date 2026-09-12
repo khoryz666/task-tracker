@@ -19,6 +19,7 @@ const CORE_ASSETS = [
   "./dist/types.js",
   "./dist/export.js",
   "./dist/settings.js",
+  "./dist/gist.js",
   "./dist/sync.js",
   "./dist/ui/list-view.js",
   "./dist/ui/dashboard-view.js",
