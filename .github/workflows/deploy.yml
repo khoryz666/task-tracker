@@ -26,8 +26,8 @@ jobs:
 
       - name: Build
         run: |
-          npx --yes typescript@5 tsc -p web/tsconfig.app.json
-          npx --yes typescript@5 tsc -p web/sw-src/tsconfig.sw.json
+          npx --yes -p typescript@5 tsc -p web/tsconfig.app.json
+          npx --yes -p typescript@5 tsc -p web/sw-src/tsconfig.sw.json
 
       - uses: actions/upload-pages-artifact@v3
         with:
