@@ -5,7 +5,7 @@
 // generic WorkerGlobalScope typing, so it's cast once into its own name instead.
 const sw = self as unknown as ServiceWorkerGlobalScope;
 
-const CACHE_VERSION = "v11";
+const CACHE_VERSION = "v1";
 const CACHE_NAME = `task-tracker-${CACHE_VERSION}`;
 
 const CORE_ASSETS = [
