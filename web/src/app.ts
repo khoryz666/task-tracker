@@ -2,6 +2,7 @@ import { exportToFile, importFromFile } from "./export.js";
 import { registerServiceWorker } from "./register-sw.js";
 import * as store from "./store.js";
 import { scheduleSync, syncNow } from "./sync.js";
+import { mountDashboardView } from "./ui/dashboard-view.js";
 import { icon } from "./ui/icons.js";
 import { mountListView } from "./ui/list-view.js";
 import { mountSettingsPanel } from "./ui/settings-panel.js";
@@ -70,6 +71,36 @@ function mountDataToolbar(root: HTMLElement): void {
   root.append(bar);
 }
 
+function mountTabs(root: HTMLElement): { list: HTMLElement; dashboard: HTMLElement } {
+  const nav = document.createElement("nav");
+  nav.className = "tab-bar";
+  const listBtn = document.createElement("button");
+  listBtn.type = "button";
+  listBtn.className = "tab-bar__button tab-bar__button--active";
+  listBtn.textContent = "Tasks";
+  const dashboardBtn = document.createElement("button");
+  dashboardBtn.type = "button";
+  dashboardBtn.className = "tab-bar__button";
+  dashboardBtn.textContent = "Dashboard";
+  nav.append(listBtn, dashboardBtn);
+
+  const listPanel = document.createElement("div");
+  const dashboardPanel = document.createElement("div");
+  dashboardPanel.hidden = true;
+
+  function show(panel: "list" | "dashboard"): void {
+    listPanel.hidden = panel !== "list";
+    dashboardPanel.hidden = panel !== "dashboard";
+    listBtn.classList.toggle("tab-bar__button--active", panel === "list");
+    dashboardBtn.classList.toggle("tab-bar__button--active", panel === "dashboard");
+  }
+  listBtn.addEventListener("click", () => show("list"));
+  dashboardBtn.addEventListener("click", () => show("dashboard"));
+
+  root.append(nav, listPanel, dashboardPanel);
+  return { list: listPanel, dashboard: dashboardPanel };
+}
+
 async function main(): Promise<void> {
   registerServiceWorker();
   await store.init();
@@ -85,7 +116,9 @@ async function main(): Promise<void> {
   const root = document.getElementById("app");
   if (!root) throw new Error("missing #app root element");
   mountDataToolbar(root);
-  mountListView(root);
+  const { list, dashboard } = mountTabs(root);
+  mountListView(list);
+  mountDashboardView(dashboard);
 
   // Auto-sync: after every local edit (debounced), when the tab regains
   // focus, and on a periodic interval as a fallback while the app is open.
