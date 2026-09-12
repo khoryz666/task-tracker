@@ -17,7 +17,22 @@ for cmd in gh node curl git; do
   command -v "$cmd" >/dev/null || { echo "Missing '$cmd'. Run this inside 'nix develop'."; exit 1; }
 done
 
-gh auth status >/dev/null 2>&1 || { echo "Run 'gh auth login' first, then re-run this script."; exit 1; }
+# No manual "create a classic token" step: this reuses (and if needed,
+# upgrades) your existing `gh` CLI login. SSH keys authenticate git
+# push/pull, which is separate - the sync gist and Actions secrets are
+# plain HTTPS calls to GitHub's REST API, which need a bearer token
+# regardless of how your git transport is configured. `gh` already holds
+# one; we just make sure it carries the 'gist' scope.
+step "Checking GitHub CLI authentication"
+if ! gh auth status >/dev/null 2>&1; then
+  echo "Not logged in yet - this opens your browser to sign in."
+  gh auth login -h github.com -s gist -w
+fi
+if ! gh auth status 2>&1 | grep -qi "'gist'"; then
+  echo "Your gh session is missing the 'gist' scope - requesting it (opens your browser)."
+  gh auth refresh -h github.com -s gist
+fi
+GIST_PAT=${GIST_PAT:-$(gh auth token)} # override by exporting GIST_PAT yourself (e.g. a narrower classic token)
 
 REPO=$(gh repo view --json nameWithOwner -q .nameWithOwner 2>/dev/null) || {
   echo "Couldn't detect a GitHub repo for this directory."
@@ -26,10 +41,6 @@ REPO=$(gh repo view --json nameWithOwner -q .nameWithOwner 2>/dev/null) || {
 }
 echo "Repo: $REPO"
 echo
-
-read -rsp "GitHub personal access token (classic, scope: gist only - create one at https://github.com/settings/tokens): " GIST_PAT
-echo
-[ -n "$GIST_PAT" ] || { echo "A token is required."; exit 1; }
 
 read -rsp "Groq API key (optional, for AI-written reminders - https://console.groq.com/keys) [Enter to skip]: " GROQ_API_KEY
 echo
@@ -97,5 +108,13 @@ else
 fi
 echo
 echo "On each device (desktop and mobile): open that URL, install it, open"
-echo "Sync settings, and paste the same GitHub token you entered above."
-echo "That enables sync and lets you turn on notifications there."
+echo "Sync settings, and paste this token (treat it like a password):"
+echo
+echo "  $GIST_PAT"
+echo
+echo "That enables sync and lets you turn on notifications there. It's your"
+echo "'gh' CLI's own token (now including the gist scope) - note it also"
+echo "carries gh's other default scopes (repo, workflow, etc.), broader than"
+echo "a gist-only classic token would be. Revoke it any time from"
+echo "https://github.com/settings/applications (GitHub CLI) or 'gh auth"
+echo "logout'; a fresh 'gh auth login' + re-running this script issues a new one."
